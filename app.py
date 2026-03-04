@@ -1180,6 +1180,10 @@ with st.sidebar:
         st.warning("No reps — add them in ⚙️ Settings")
 
     # ── Date picker ────────────────────────────────────────────────────────────
+    # Apply any pending date set by the weekday buttons (must happen before
+    # the date_input widget is instantiated — Streamlit rule).
+    if "_wkday_pending" in st.session_state:
+        st.session_state["draft_date"] = st.session_state.pop("_wkday_pending")
     st.markdown('<div class="sb-section">Date</div>', unsafe_allow_html=True)
     st.date_input("Date", key="draft_date", value=date.today(), label_visibility="collapsed")
 
@@ -1203,8 +1207,9 @@ with st.sidebar:
                 use_container_width=True,
                 help=_tip,
             ):
-                st.session_state["draft_date"]  = _wd
-                st.session_state["_loaded_for"] = None  # force reload for new date
+                # Store in staging key — applied before date_input on next run
+                st.session_state["_wkday_pending"] = _wd
+                st.session_state["_loaded_for"]    = None
                 st.rerun()
 
     # ── Draft score indicator ──────────────────────────────────────────────────
