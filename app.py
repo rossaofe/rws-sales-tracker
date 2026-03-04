@@ -1172,13 +1172,40 @@ with st.sidebar:
     )
 
     # ── Log context ────────────────────────────────────────────────────────────
-    st.markdown('<div class="sb-section">Logging for</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-section">Rep</div>', unsafe_allow_html=True)
     _reps = get_setting("reps", [])
     if _reps:
         st.selectbox("Rep", _reps, key="draft_rep", label_visibility="collapsed")
     else:
         st.warning("No reps — add them in ⚙️ Settings")
+
+    # ── Date picker ────────────────────────────────────────────────────────────
+    st.markdown('<div class="sb-section">Date</div>', unsafe_allow_html=True)
     st.date_input("Date", key="draft_date", value=date.today(), label_visibility="collapsed")
+
+    # ── This-week day buttons ──────────────────────────────────────────────────
+    st.markdown('<div class="sb-section">This Week</div>', unsafe_allow_html=True)
+    _today     = date.today()
+    _wk_start  = week_start(_today)
+    _wk_days   = [_wk_start + timedelta(days=i) for i in range(5)]  # Mon–Fri
+    _sel_date  = st.session_state.get("draft_date", _today)
+    _day_lbls  = ["M", "T", "W", "T", "F"]
+    _day_cols  = st.columns(5)
+    for _i, (_dc, _wd) in enumerate(zip(_day_cols, _wk_days)):
+        _is_sel = (_wd == _sel_date)
+        _is_tod = (_wd == _today)
+        _tip    = _wd.strftime("%A %d %b") + (" · today" if _is_tod else "")
+        with _dc:
+            if st.button(
+                _day_lbls[_i],
+                key=f"wkday_{_i}",
+                type="primary" if _is_sel else "secondary",
+                use_container_width=True,
+                help=_tip,
+            ):
+                st.session_state["draft_date"]  = _wd
+                st.session_state["_loaded_for"] = None  # force reload for new date
+                st.rerun()
 
     # ── Draft score indicator ──────────────────────────────────────────────────
     _sd = st.session_state.get("_draft", {})
