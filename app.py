@@ -1185,7 +1185,7 @@ with st.sidebar:
     if "_wkday_pending" in st.session_state:
         st.session_state["draft_date"] = st.session_state.pop("_wkday_pending")
     st.markdown('<div class="sb-section">Date</div>', unsafe_allow_html=True)
-    st.date_input("Date", key="draft_date", value=date.today(), label_visibility="collapsed")
+    st.date_input("Date", key="draft_date", label_visibility="collapsed")
 
     # ── This-week day buttons ──────────────────────────────────────────────────
     st.markdown('<div class="sb-section">This Week</div>', unsafe_allow_html=True)
