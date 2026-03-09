@@ -1269,6 +1269,73 @@ with st.sidebar:
                      key="sb_review"):
             st.session_state.wizard_step = 4; st.rerun()
 
+    # ── Weekly Progress ────────────────────────────────────────────────────────
+    _sb_tgt_settings = get_setting("targets", {})
+    _sb_tgt_active   = {f: int(_sb_tgt_settings.get(f, 0) or 0)
+                        for f in COUNT_FIELDS
+                        if int(_sb_tgt_settings.get(f, 0) or 0) > 0}
+    if _sb_tgt_active:
+        st.markdown('<div class="sb-section">Weekly Progress</div>', unsafe_allow_html=True)
+        # Load the saved record for the selected rep + week (not the draft)
+        _sb_rep_p = st.session_state.get("draft_rep", "")
+        _sb_dr    = st.session_state.get("draft_date", date.today())
+        if isinstance(_sb_dr, str):
+            _sb_dr = date.fromisoformat(_sb_dr)
+        _sb_saved = (get_existing_row(str(week_start(_sb_dr)), _sb_rep_p)
+                     if _sb_rep_p else None) or {}
+
+        _CH_GROUPS = [("📅", "meetings"), ("📞", "calls"), ("✉️", "email"), ("🔗", "linkedin")]
+        prog_html  = ""
+        total_met  = 0
+        for ico, step in _CH_GROUPS:
+            ch_fields = [f for f in STEP_FIELDS[step] if f in _sb_tgt_active]
+            if not ch_fields:
+                continue
+            prog_html += (
+                f'<div style="font-size:0.66rem;font-weight:700;color:#475569;'
+                f'margin:10px 0 5px 0;text-transform:uppercase;letter-spacing:0.07em">'
+                f'{ico} {step.title()}</div>'
+            )
+            for f in ch_fields:
+                t   = _sb_tgt_active[f]
+                a   = int(_sb_saved.get(f, 0) or 0)
+                pct = min(a / t * 100, 100) if t > 0 else 0
+                met = a >= t
+                if met:
+                    total_met += 1
+                val_color = "#10B981" if met else ("#F8FAFC" if a > 0 else "#475569")
+                bar_color = "#10B981" if met else ("#F59E0B" if a > 0 else "rgba(255,255,255,0.08)")
+                prog_html += (
+                    f'<div style="margin-bottom:8px">'
+                    f'  <div style="display:flex;justify-content:space-between;'
+                    f'      align-items:center;margin-bottom:3px">'
+                    f'    <span style="font-size:0.71rem;color:#94A3B8;overflow:hidden;'
+                    f'        text-overflow:ellipsis;white-space:nowrap;max-width:118px">'
+                    f'      {FIELD_LABELS[f]}</span>'
+                    f'    <span style="font-size:0.71rem;font-weight:700;color:{val_color};'
+                    f'        white-space:nowrap;margin-left:4px">'
+                    f'      {a}<span style="color:#334155;font-weight:400"> / {t}</span>'
+                    f'    </span>'
+                    f'  </div>'
+                    f'  <div style="height:4px;background:rgba(255,255,255,0.07);'
+                    f'      border-radius:2px;overflow:hidden">'
+                    f'    <div style="width:{pct:.0f}%;height:100%;background:{bar_color};'
+                    f'        border-radius:2px"></div>'
+                    f'  </div>'
+                    f'</div>'
+                )
+        st.markdown(prog_html, unsafe_allow_html=True)
+        # Summary line
+        _n_tgt = len(_sb_tgt_active)
+        _s_color = "#10B981" if total_met == _n_tgt else ("#F59E0B" if total_met > 0 else "#64748B")
+        st.markdown(
+            f'<div style="font-size:0.7rem;color:{_s_color};font-weight:700;'
+            f'margin-top:4px;margin-bottom:2px">'
+            f'  {total_met} / {_n_tgt} goals hit this week'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
     # ── Quick actions ──────────────────────────────────────────────────────────
     st.markdown('<div class="sb-section">Quick Actions</div>', unsafe_allow_html=True)
 
