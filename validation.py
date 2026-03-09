@@ -35,7 +35,6 @@ FUNNEL_CHAINS: dict[str, list[str]] = {
         "li_request_sent",
         "li_accepted",
         "li_reply",
-        "li_convo_started",
         "li_meeting_booked",
     ],
     "meetings": [],  # no funnel constraint

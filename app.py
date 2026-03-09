@@ -30,7 +30,6 @@ from scoring import (
     STEP_FIELDS,
     compute_row_score,
     compute_row_total,
-    get_caps,
     get_channels,
     get_leaderboard,
     get_weights,
@@ -82,7 +81,6 @@ OUTCOME_HELP = {
     "li_request_sent":       "New LinkedIn connection request sent to a prospect today.",
     "li_accepted":           "A prospect accepted your LinkedIn connection request.",
     "li_reply":              "Any reply received to a LinkedIn message you sent.",
-    "li_convo_started":      "2+ back-and-forth exchanges establishing rapport or uncovering need.",
     "li_meeting_booked":     "A meeting booked as a direct result of your LinkedIn outreach.",
 }
 
@@ -450,12 +448,16 @@ _init_session()
 
 def _auto_load_existing() -> None:
     """
-    When rep or date changes, pull that day's saved record into the count
-    fields. If no record exists the fields are left as-is (initialised to 0
+    When rep or date changes, pull that week's saved record into the count
+    fields. Date is snapped to week-start before lookup.
+    If no record exists the fields are left as-is (initialised to 0
     by _init_session on first load; only Clear Draft resets them).
     """
-    rep  = st.session_state.get("draft_rep", "")
-    dval = str(st.session_state.get("draft_date", date.today()))
+    rep      = st.session_state.get("draft_rep", "")
+    dval_raw = st.session_state.get("draft_date", date.today())
+    if isinstance(dval_raw, str):
+        dval_raw = date.fromisoformat(dval_raw)
+    dval = str(week_start(dval_raw))
     key  = (rep, dval)
     if st.session_state.get("_loaded_for") == key:
         return  # already loaded for this rep + date
@@ -485,21 +487,21 @@ def month_start(ref: date = None) -> date:
 
 def sum_scores(rows: list, weights: dict = None, caps: dict = None) -> float:
     w = weights or get_weights()
-    c = caps    or get_caps()
+    c = caps    or {}
     return round(sum(compute_row_total(r, w, c) for r in rows), 1)
 
 
 def create_summary_csv(rows: list, reps: list) -> str:
     if not rows:
         return ""
-    w, c = get_weights(), get_caps()
+    w, c = get_weights(), {}
     buf  = io.StringIO()
 
     buf.write("LEADERBOARD\n")
     lb = pd.DataFrame(get_leaderboard(rows, reps, w, c)).drop(columns=["_qr"], errors="ignore")
     lb.to_csv(buf, index=False)
 
-    buf.write("\nDAILY TOTALS WITH SCORE\n")
+    buf.write("\nWEEKLY TOTALS WITH SCORE\n")
     scored_rows = []
     for r in rows:
         s = compute_row_score(r, w, c)
@@ -549,11 +551,12 @@ def _zero_all() -> None:
             del st.session_state[f]
 
 
-def _copy_yesterday() -> bool:
+def _copy_last_week() -> bool:
     rep = st.session_state.get("draft_rep", "")
     if not rep:
         return False
-    row = get_existing_row(str(date.today() - timedelta(days=1)), rep)
+    last_wk = str(week_start(date.today() - timedelta(days=7)))
+    row = get_existing_row(last_wk, rep)
     if not row:
         return False
     for f in COUNT_FIELDS:
@@ -564,12 +567,12 @@ def _copy_yesterday() -> bool:
 
 
 def _load_typical() -> int:
-    """Fill counts with the 7-day rolling average for the selected rep."""
+    """Fill counts with the 4-week rolling average for the selected rep."""
     rep = st.session_state.get("draft_rep", "")
     if not rep:
         return 0
-    rows = get_daily_totals(date.today() - timedelta(days=7),
-                            date.today() - timedelta(days=1), rep)
+    rows = get_daily_totals(week_start(date.today() - timedelta(days=28)),
+                            week_start(date.today() - timedelta(days=7)), rep)
     if not rows:
         return 0
     for f in COUNT_FIELDS:
@@ -599,12 +602,9 @@ def _card_header(icon: str, title: str, subtitle: str) -> None:
 def _count_input(field: str, col=None) -> None:
     channel, outcome = FIELD_MAP[field]
     wts = get_weights()
-    cs  = get_caps()
     wt  = wts.get(channel, {}).get(outcome, 0)
-    cap = cs.get(channel, {}).get(outcome)
-    cap_str  = f"  ·  Cap: {cap}/day" if cap else "  ·  Uncapped"
     desc     = OUTCOME_HELP.get(field, "")
-    help_txt = f"**{wt} pts each**{cap_str}\n\n{desc}"
+    help_txt = f"**{wt} pts each**\n\n{desc}"
     target   = col or st
 
     target.number_input(
@@ -706,7 +706,7 @@ def _live_score_panel() -> None:
     """Right-side live scoring summary — updates on every widget change."""
     _d = st.session_state.get("_draft", {})
     counts = {f: int(_d.get(f, 0) or 0) for f in COUNT_FIELDS}
-    w, c   = get_weights(), get_caps()
+    w, c   = get_weights(), {}
     s      = compute_row_score(counts, w, c)
     total  = s["total"]
     qr     = s["quality_ratio"]
@@ -753,12 +753,6 @@ def _live_score_panel() -> None:
             st.markdown(f'<div>{bars_html}</div>', unsafe_allow_html=True)
         else:
             st.markdown(bars_html, unsafe_allow_html=True)  # show empty bars
-        # Cap warnings
-        if s["cap_warnings"]:
-            st.markdown('<div class="lsp-sec">Cap Warnings</div>', unsafe_allow_html=True)
-            for w_str in s["cap_warnings"]:
-                st.markdown(f'<div class="lsp-cap-warn">⚠️ {w_str}</div>',
-                            unsafe_allow_html=True)
         # Step completion status
         st.markdown('<div class="lsp-sec">Steps filled</div>', unsafe_allow_html=True)
         icons_html = ""
@@ -775,7 +769,7 @@ def _live_score_panel() -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _step_meetings() -> None:
-    _card_header("📅", "Meetings", "How many meetings did you hold today?")
+    _card_header("📅", "Meetings", "How many meetings did you hold this week?")
     with st.form("step_meetings_form"):
         c1, _ = st.columns(2)
         _count_input("meeting_held", col=c1)
@@ -793,7 +787,7 @@ def _step_meetings() -> None:
 
 
 def _step_calls() -> None:
-    _card_header("📞", "Calls", "Log every call attempt and outcome from your session today.")
+    _card_header("📞", "Calls", "Log every call attempt and outcome from your sessions this week.")
     _errors = st.session_state.get("_step_errors", []) if st.session_state.get("_error_step") == "calls" else []
     with st.form("step_calls_form"):
         c1, c2 = st.columns(2)
@@ -849,7 +843,7 @@ def _step_calls() -> None:
 
 
 def _step_email() -> None:
-    _card_header("✉️", "Email", "Count every outbound email and any replies you received today.")
+    _card_header("✉️", "Email", "Count every outbound email and any replies you received this week.")
     _errors = st.session_state.get("_step_errors", []) if st.session_state.get("_error_step") == "email" else []
     with st.form("step_email_form"):
         c1, c2 = st.columns(2)
@@ -905,7 +899,7 @@ def _step_email() -> None:
 
 
 def _step_linkedin() -> None:
-    _card_header("🔗", "LinkedIn", "Record all LinkedIn outreach activity from today.")
+    _card_header("🔗", "LinkedIn", "Record all LinkedIn outreach activity from this week.")
     _errors = st.session_state.get("_step_errors", []) if st.session_state.get("_error_step") == "linkedin" else []
     with st.form("step_linkedin_form"):
         c1, c2 = st.columns(2)
@@ -961,11 +955,14 @@ def _step_linkedin() -> None:
 
 
 def _step_review() -> None:
-    date_val = str(st.session_state.get("draft_date", date.today()))
+    _rv_date_raw = st.session_state.get("draft_date", date.today())
+    if isinstance(_rv_date_raw, str):
+        _rv_date_raw = date.fromisoformat(_rv_date_raw)
+    date_val = str(week_start(_rv_date_raw))
     rep_name = st.session_state.get("draft_rep", "")
     _d       = st.session_state.get("_draft", {})
     counts   = {f: int(_d.get(f, 0) or 0) for f in COUNT_FIELDS}
-    w, c     = get_weights(), get_caps()
+    w, c     = get_weights(), {}
     scored   = compute_row_score(counts, w, c)
 
     funnel_result = validate_all(counts)
@@ -978,7 +975,7 @@ def _step_review() -> None:
         f'  <div>'
         f'    <div class="receipt-title">✅ Review &amp; Save</div>'
         f'    <div class="receipt-meta">'
-        f'      {rep_name or "<em>No rep selected</em>"}&nbsp;·&nbsp;{date_val}'
+        f'      {rep_name or "<em>No rep selected</em>"}&nbsp;·&nbsp;Week of {date_val}'
         f'    </div>'
         f'  </div>'
         f'  <div style="text-align:right">'
@@ -991,10 +988,6 @@ def _step_review() -> None:
         f'</div>',
         unsafe_allow_html=True,
     )
-
-    # ── Cap warnings ───────────────────────────────────────────────────────────
-    for warn in scored["cap_warnings"]:
-        st.warning(f"⚠️  Cap applied: {warn}")
 
     # ── Per-channel breakdown ──────────────────────────────────────────────────
     st.markdown('<div class="sec-label">Score Breakdown</div>', unsafe_allow_html=True)
@@ -1046,13 +1039,13 @@ def _step_review() -> None:
                             tcols[i % 5].image(p, width=120, caption=os.path.basename(p)[:22])
 
     # ── Notes + existing-row warning ───────────────────────────────────────────
-    st.text_area("Day notes (optional)", key="draft_notes", height=75)
+    st.text_area("Week notes (optional)", key="draft_notes", height=75)
 
     existing = get_existing_row(date_val, rep_name)
     add_to   = False
     if existing:
         st.info(
-            f"📝 Updating existing record for **{rep_name}** on **{date_val}**. "
+            f"📝 Updating existing record for **{rep_name}** — week of **{date_val}**. "
             f"The counts below already include what was previously saved — just edit and save."
         )
 
@@ -1088,7 +1081,7 @@ def _step_review() -> None:
         if st.button("← Back", use_container_width=True, key="rev_back"):
             st.session_state.wizard_step = 3; st.rerun()
     with b2:
-        if st.button("💾 Save Day", type="primary", use_container_width=True, key="rev_save",
+        if st.button("💾 Save Week", type="primary", use_container_width=True, key="rev_save",
                      disabled=not _funnel_ok,
                      help="Fix funnel violations above before saving" if not _funnel_ok else None):
             if not rep_name:
@@ -1099,7 +1092,7 @@ def _step_review() -> None:
                 for sname in STEP_NAMES:
                     add_proofs(row_id, sname, st.session_state.draft_proofs[sname])
                 action = "Updated" if existing else "Saved"
-                st.success(f"✅  {action}! **{rep_name}** on **{date_val}** — "
+                st.success(f"✅  {action}! **{rep_name}** — week of **{date_val}** — "
                            f"**{scored['total']} pts**")
                 _clear_draft()
                 st.rerun()
@@ -1164,7 +1157,7 @@ with st.sidebar:
         '  <span class="sb-logo-icon">🎯</span>'
         '  <div>'
         '    <div class="sb-logo-name">RWS Sales Tracker</div>'
-        '    <div class="sb-logo-sub">Daily Activity Log</div>'
+        '    <div class="sb-logo-sub">Weekly Activity Log</div>'
         '    <span class="sb-logo-badge">RWS</span>'
         '  </div>'
         '</div>',
@@ -1179,38 +1172,35 @@ with st.sidebar:
     else:
         st.warning("No reps — add them in ⚙️ Settings")
 
-    # ── Date picker ────────────────────────────────────────────────────────────
-    # Apply any pending date set by the weekday buttons (must happen before
-    # the date_input widget is instantiated — Streamlit rule).
-    if "_wkday_pending" in st.session_state:
-        st.session_state["draft_date"] = st.session_state.pop("_wkday_pending")
-    st.markdown('<div class="sb-section">Date</div>', unsafe_allow_html=True)
-    st.date_input("Date", key="draft_date", label_visibility="collapsed")
+    # ── Week picker ────────────────────────────────────────────────────────────
+    st.markdown('<div class="sb-section">Week</div>', unsafe_allow_html=True)
+    _today   = date.today()
+    _cur_mon = week_start(_today)
+    # 23 weeks back → this week → 4 weeks ahead (28 options)
+    _wk_list = [_cur_mon + timedelta(weeks=i) for i in range(-23, 5)]
 
-    # ── This-week day buttons ──────────────────────────────────────────────────
-    st.markdown('<div class="sb-section">This Week</div>', unsafe_allow_html=True)
-    _today     = date.today()
-    _wk_start  = week_start(_today)
-    _wk_days   = [_wk_start + timedelta(days=i) for i in range(5)]  # Mon–Fri
-    _sel_date  = st.session_state.get("draft_date", _today)
-    _day_lbls  = ["M", "T", "W", "T", "F"]
-    _day_cols  = st.columns(5)
-    for _i, (_dc, _wd) in enumerate(zip(_day_cols, _wk_days)):
-        _is_sel = (_wd == _sel_date)
-        _is_tod = (_wd == _today)
-        _tip    = _wd.strftime("%A %d %b") + (" · today" if _is_tod else "")
-        with _dc:
-            if st.button(
-                _day_lbls[_i],
-                key=f"wkday_{_i}",
-                type="primary" if _is_sel else "secondary",
-                use_container_width=True,
-                help=_tip,
-            ):
-                # Store in staging key — applied before date_input on next run
-                st.session_state["_wkday_pending"] = _wd
-                st.session_state["_loaded_for"]    = None
-                st.rerun()
+    def _wk_lbl(w: date) -> str:
+        end = w + timedelta(days=4)
+        s = f"{w.strftime('%d %b')} – {end.strftime('%d %b %Y')}"
+        return (s + "  ← now") if w == _cur_mon else s
+
+    _wk_labels   = [_wk_lbl(w) for w in _wk_list]
+    _label_to_wk = dict(zip(_wk_labels, _wk_list))
+
+    _cur_draft = st.session_state.get("draft_date", _cur_mon)
+    if isinstance(_cur_draft, str):
+        _cur_draft = date.fromisoformat(_cur_draft)
+    _cur_draft_wk = week_start(_cur_draft)
+    _def_idx = next((i for i, w in enumerate(_wk_list) if w == _cur_draft_wk), 23)
+
+    _sel_label = st.selectbox(
+        "Week", _wk_labels, index=_def_idx,
+        label_visibility="collapsed", key="week_sel",
+    )
+    _new_wk = _label_to_wk[_sel_label]
+    if st.session_state.get("draft_date") != _new_wk:
+        st.session_state["draft_date"] = _new_wk
+        st.session_state["_loaded_for"] = None
 
     # ── Draft score indicator ──────────────────────────────────────────────────
     _sd = st.session_state.get("_draft", {})
@@ -1232,17 +1222,17 @@ with st.sidebar:
     if st.button("⬛  Zero All Fields", use_container_width=True, key="sb_zero"):
         _zero_all(); st.rerun()
 
-    if st.button("📋  Copy Yesterday", use_container_width=True, key="sb_copy"):
-        if _copy_yesterday():
-            st.toast("Copied from yesterday!", icon="✅")
+    if st.button("📋  Copy Last Week", use_container_width=True, key="sb_copy"):
+        if _copy_last_week():
+            st.toast("Copied from last week!", icon="✅")
         else:
-            st.toast("No record found for yesterday.", icon="⚠️")
+            st.toast("No record found for last week.", icon="⚠️")
         st.rerun()
 
-    if st.button("📈  Typical Day (7-day avg)", use_container_width=True, key="sb_typical"):
+    if st.button("📈  Typical Week (4-wk avg)", use_container_width=True, key="sb_typical"):
         n = _load_typical()
         if n:
-            st.toast(f"Loaded average of {n} day(s)", icon="📈")
+            st.toast(f"Loaded average of {n} week(s)", icon="📈")
         else:
             st.toast("Not enough history yet.", icon="⚠️")
         st.rerun()
@@ -1271,15 +1261,20 @@ _auto_load_existing()
 # App hero header (above tabs)
 # ══════════════════════════════════════════════════════════════════════════════
 
-_h_rep  = st.session_state.get("draft_rep", "")
-_h_date = str(st.session_state.get("draft_date", date.today()))
+_h_rep     = st.session_state.get("draft_rep", "")
+_h_date_raw = st.session_state.get("draft_date", date.today())
+if isinstance(_h_date_raw, str):
+    _h_date_raw = date.fromisoformat(_h_date_raw)
+_h_wk_start = week_start(_h_date_raw)
+_h_wk_end   = _h_wk_start + timedelta(days=4)
+_h_wk_str   = f"{_h_wk_start.strftime('%d %b')} – {_h_wk_end.strftime('%d %b %Y')}"
 _h_meta = (
-    f"<strong>{_h_rep}</strong>&nbsp;·&nbsp;{_h_date}"
-    if _h_rep else _h_date
+    f"<strong>{_h_rep}</strong>&nbsp;·&nbsp;Week of {_h_wk_str}"
+    if _h_rep else f"Week of {_h_wk_str}"
 )
 st.markdown(
     f'<div class="app-hero">'
-    f'  <div class="app-hero-eyebrow">RWS · Daily Activity Tracker</div>'
+    f'  <div class="app-hero-eyebrow">RWS · Weekly Activity Tracker</div>'
     f'  <div class="app-hero-title">Sales Command Centre</div>'
     f'  <div class="app-hero-meta">{_h_meta}</div>'
     f'</div>',
@@ -1292,7 +1287,7 @@ st.markdown(
 # ══════════════════════════════════════════════════════════════════════════════
 
 tab_wizard, tab_dash, tab_import, tab_settings = st.tabs(
-    ["📝  Daily Log", "📈  Dashboard", "📤  Import CSV", "⚙️  Settings"]
+    ["📝  Weekly Log", "📈  Dashboard", "📤  Import CSV", "⚙️  Settings"]
 )
 
 
@@ -1330,7 +1325,7 @@ with tab_wizard:
 with tab_dash:
     reps_list = get_setting("reps", [])
     today     = date.today()
-    w, c      = get_weights(), get_caps()
+    w, c      = get_weights(), {}
 
     # ── Filters ────────────────────────────────────────────────────────────────
     st.markdown('<div class="sec-label">Filters</div>', unsafe_allow_html=True)
@@ -1349,10 +1344,10 @@ with tab_dash:
         unsafe_allow_html=True,
     )
     kc1, kc2, kc3, kc4 = st.columns(4)
-    kc1.metric(f"📅 Today — {label}",
-               f"{sum_scores(get_daily_totals(today, today, f_rep), w, c)} pts")
+    kc1.metric(f"📅 Last Week — {label}",
+               f"{sum_scores(get_daily_totals(week_start(today - timedelta(days=7)), week_start(today - timedelta(days=7)), f_rep), w, c)} pts")
     kc2.metric(f"📆 This Week — {label}",
-               f"{sum_scores(get_daily_totals(week_start(), today, f_rep), w, c)} pts")
+               f"{sum_scores(get_daily_totals(week_start(), week_start(), f_rep), w, c)} pts")
     kc3.metric(f"🗓️ This Month — {label}",
                f"{sum_scores(get_daily_totals(month_start(), today, f_rep), w, c)} pts")
     kc4.metric(f"📊 Selected Period",
@@ -1407,7 +1402,7 @@ with tab_dash:
     with ch_col1:
         with st.container(border=True):
             st.markdown(
-                '<div class="chart-title">Daily Score Trend</div>'
+                '<div class="chart-title">Score Trend</div>'
                 '<div class="chart-sub">Last 30 days</div>',
                 unsafe_allow_html=True,
             )
@@ -1478,7 +1473,7 @@ with tab_dash:
     # ── Daily totals table ─────────────────────────────────────────────────────
     st.markdown(
         '<div class="section-title">Activity Log</div>'
-        '<div class="section-title-sub">Full daily record for the selected period</div>',
+        '<div class="section-title-sub">Full weekly record for the selected period</div>',
         unsafe_allow_html=True,
     )
     if filtered:
@@ -1522,11 +1517,11 @@ with tab_dash:
                  **{f: r.get(f, 0) for f in COUNT_FIELDS}, "notes": r.get("notes", "")}
                 for r in filtered
             ]).to_csv(index=False)
-            st.download_button("📥 Raw Daily Totals (CSV)", data=raw,
-                               file_name=f"daily_totals_{f_start}_{f_end}.csv",
+            st.download_button("📥 Raw Weekly Totals (CSV)", data=raw,
+                               file_name=f"weekly_totals_{f_start}_{f_end}.csv",
                                mime="text/csv", use_container_width=True)
         else:
-            st.button("📥 Raw Daily Totals (CSV)", disabled=True, use_container_width=True)
+            st.button("📥 Raw Weekly Totals (CSV)", disabled=True, use_container_width=True)
 
     with ex2:
         if filtered:
@@ -1554,8 +1549,8 @@ with tab_import:
             st.markdown("##### How it works")
             st.markdown(
                 '<div class="import-info">'
-                'Each CSV row represents <strong>one rep on one date</strong>.<br>'
-                'All 15 activity count columns must be present (or will be filled with 0).<br>'
+                'Each CSV row represents <strong>one rep for one week</strong> (use the week-start Monday as the date).<br>'
+                'All activity count columns must be present (or will be filled with 0).<br>'
                 'Rows violating funnel order (e.g. Connects &gt; Dials) are '
                 '<strong>rejected</strong> — reasons shown in the summary.<br>'
                 'Existing rows for the same (date, rep) are <strong>overwritten</strong> by default.'
@@ -1700,24 +1695,12 @@ with tab_settings:
 
     with s_col3:
         with st.container(border=True):
-            st.markdown("##### 🚦 Daily Caps")
-            st.caption("Capped per rep per day. Omitted outcomes = uncapped.")
-            caps_input = st.text_area(
-                "Caps", json.dumps(get_setting("caps", {}), indent=2),
-                height=180, key="s_caps", label_visibility="collapsed",
-            )
-
-        with st.container(border=True):
             st.markdown("##### 📋 Scoring Cheat-Sheet")
-            ws = get_weights(); cs = get_caps()
+            ws = get_weights()
             cs_rows = []
             for ch, outcomes in ws.items():
                 for outcome, pts in outcomes.items():
-                    cap_v = cs.get(ch, {}).get(outcome)
-                    cs_rows.append({
-                        "Ch": ch, "Outcome": outcome, "Pts": pts,
-                        "Cap": f"{cap_v}/d" if cap_v else "—",
-                    })
+                    cs_rows.append({"Ch": ch, "Outcome": outcome, "Pts": pts})
             st.dataframe(pd.DataFrame(cs_rows), use_container_width=True,
                          hide_index=True, height=220)
 
@@ -1726,7 +1709,6 @@ with tab_settings:
     if st.button("💾 Save Settings", type="primary", use_container_width=True, key="save_s"):
         errs  = []
         new_w = None
-        new_c = None
 
         new_reps = [r.strip() for r in reps_input.splitlines() if r.strip()]
         if not new_reps:
@@ -1736,18 +1718,12 @@ with tab_settings:
             if not isinstance(new_w, dict): errs.append("Weights must be a JSON object.")
         except json.JSONDecodeError as e:
             errs.append(f"Weights JSON error: {e}")
-        try:
-            new_c = json.loads(caps_input)
-            if not isinstance(new_c, dict): errs.append("Caps must be a JSON object.")
-        except json.JSONDecodeError as e:
-            errs.append(f"Caps JSON error: {e}")
 
         if errs:
             for e in errs: st.error(e)
         else:
             set_setting("reps",               new_reps)
             set_setting("weights",            new_w)
-            set_setting("caps",               new_c)
             set_setting("week_starts_monday", week_opt == "Monday")
             st.success("✅  Settings saved!")
             st.rerun()
@@ -1758,5 +1734,5 @@ with tab_settings:
         _dbg_draft = st.session_state.get("_draft", {})
         st.write("**_draft (authoritative):**")
         st.json({f: _dbg_draft.get(f, 0) for f in COUNT_FIELDS})
-        _dbg_total = compute_row_total({f: int(_dbg_draft.get(f, 0) or 0) for f in COUNT_FIELDS}, get_weights(), get_caps())
+        _dbg_total = compute_row_total({f: int(_dbg_draft.get(f, 0) or 0) for f in COUNT_FIELDS}, get_weights(), {})
         st.metric("Computed Score (_draft)", _dbg_total)

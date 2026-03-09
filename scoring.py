@@ -24,7 +24,6 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
     "li_request_sent":       ("LinkedIn", "Connection Request Sent"),
     "li_accepted":           ("LinkedIn", "Connection Accepted"),
     "li_reply":              ("LinkedIn", "Reply to Message"),
-    "li_convo_started":      ("LinkedIn", "Conversation Started"),
     "li_meeting_booked":     ("LinkedIn", "Meeting Booked"),
 }
 
@@ -42,7 +41,6 @@ FIELD_LABELS: dict[str, str] = {
     "li_request_sent":       "Connection Requests Sent",
     "li_accepted":           "Connections Accepted",
     "li_reply":              "Replies to Messages",
-    "li_convo_started":      "Conversations Started",
     "li_meeting_booked":     "Meeting Booked",
 }
 
@@ -53,8 +51,7 @@ STEP_FIELDS: dict[str, list[str]] = {
                  "call_meeting_booked"],
     "email":    ["email_sent", "email_reply", "email_positive",
                  "email_meeting_booked"],
-    "linkedin": ["li_request_sent", "li_accepted", "li_reply",
-                 "li_convo_started", "li_meeting_booked"],
+    "linkedin": ["li_request_sent", "li_accepted", "li_reply", "li_meeting_booked"],
 }
 
 

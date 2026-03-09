@@ -13,7 +13,7 @@ DB_PATH = os.path.join(os.environ.get("DATA_DIR", "."), "sales_tracker.db")
 
 # Increment this whenever DEFAULT_SETTINGS["weights"] changes.
 # init_db() uses it to re-apply new weights to existing databases automatically.
-WEIGHTS_VERSION = 3
+WEIGHTS_VERSION = 4
 
 # ── Canonical list of all count columns (order defines DB schema) ──────────────
 COUNT_FIELDS = [
@@ -24,8 +24,7 @@ COUNT_FIELDS = [
     # Email
     "email_sent", "email_reply", "email_positive", "email_meeting_booked",
     # LinkedIn
-    "li_request_sent", "li_accepted", "li_reply",
-    "li_convo_started", "li_meeting_booked",
+    "li_request_sent", "li_accepted", "li_reply", "li_meeting_booked",
 ]
 
 DEFAULT_SETTINGS = {
@@ -50,7 +49,6 @@ DEFAULT_SETTINGS = {
             "Connection Request Sent": 1,
             "Connection Accepted":     3,   # passive acceptance
             "Reply to Message":        7,   # active engagement begins
-            "Conversation Started":    12,  # sustained back-and-forth
             "Meeting Booked":          35,  # full conversion
         },
         "Meeting": {
