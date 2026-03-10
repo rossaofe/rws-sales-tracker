@@ -91,6 +91,107 @@ BRAND_AMBER  = "#F59E0B"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# SVG icon helper  (Heroicons outline — MIT licence)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _svg(name: str, size: int = 16, color: str = "currentColor") -> str:
+    _P = {
+        "phone":    "M2.25 6.338c0-1.379 1.244-2.336 2.595-2.057l5.138 1.028a2.25 2.25 0 011.437 3.234l-.463.927a13.582 13.582 0 006.564 6.564l.927-.463a2.25 2.25 0 013.234 1.437l1.028 5.138c.28 1.351-.678 2.595-2.057 2.595H19.5A17.25 17.25 0 012.25 4.5v-.162z",
+        "envelope": "M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75",
+        "link":     "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244",
+        "calendar": "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5",
+        "check":    "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+        "info":     "M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z",
+        "lightning":"M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z",
+        "star":     "M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z",
+        "chart":    "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z",
+        "trending": "M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941",
+        "user":     "M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z",
+        "target":   "M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z",
+        "book":     "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
+    }
+    path = _P.get(name, "")
+    if not path:
+        return ""
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
+        f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.75" '
+        f'stroke-linecap="round" stroke-linejoin="round" '
+        f'style="display:inline-block;vertical-align:middle;flex-shrink:0">'
+        f'<path d="{path}"/></svg>'
+    )
+
+
+# Channel icon map (SVG) — used in HTML-rendered sections
+_CH_SVG = {
+    "Call":    lambda s=15: _svg("phone",    s, "#94A3B8"),
+    "Email":   lambda s=15: _svg("envelope", s, "#94A3B8"),
+    "LinkedIn":lambda s=15: _svg("link",     s, "#94A3B8"),
+    "Meeting": lambda s=15: _svg("calendar", s, "#94A3B8"),
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Score reasoning
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _score_reasoning(counts: dict, scored: dict) -> list:
+    """Return a list of insight strings explaining the current score."""
+    total = scored["total"]
+    ch    = scored["channel_totals"]
+    qr    = scored["quality_ratio"]
+
+    if total == 0:
+        return ["Enter your activity numbers to see personalised score insights."]
+
+    lines = []
+
+    # Top channel
+    ranked = sorted([(c, p) for c, p in ch.items() if p > 0], key=lambda x: x[1], reverse=True)
+    if ranked:
+        top_ch, top_pts = ranked[0]
+        lines.append(f"**{top_ch}** is your strongest channel — {top_pts:.0f} pts ({top_pts/total*100:.0f}% of total).")
+
+    # Calls
+    dial    = counts.get("call_dial", 0)
+    connect = counts.get("call_connect", 0)
+    convo   = counts.get("call_meaningful_convo", 0)
+    if dial > 0 and connect > 0:
+        cr    = connect / dial * 100
+        label = "strong" if cr >= 25 else "average" if cr >= 15 else "low"
+        lines.append(f"Call connect rate **{cr:.0f}%** ({connect}/{dial} dials) — {label} for cold outreach.")
+    if convo > 0 and connect > 0:
+        mc = convo / connect * 100
+        lines.append(f"**{convo}** meaningful conversation{'s' if convo != 1 else ''} from {connect} connects ({mc:.0f}%) — high-multiplier call outcomes.")
+
+    # Email
+    sent  = counts.get("email_sent", 0)
+    reply = counts.get("email_reply", 0)
+    if sent > 0 and reply > 0:
+        rr = reply / sent * 100
+        lines.append(f"Email reply rate **{rr:.0f}%** ({reply}/{sent}) — {'above' if rr >= 5 else 'below'} the typical 5% benchmark.")
+
+    # Meetings booked
+    booked = (counts.get("call_meeting_booked", 0)
+              + counts.get("email_meeting_booked", 0)
+              + counts.get("li_meeting_booked", 0))
+    if booked > 0:
+        lines.append(f"**{booked} meeting{'s' if booked != 1 else ''} booked** across all channels — the highest-value outcomes in the model.")
+
+    # Quality ratio
+    if qr >= 0.7:
+        lines.append(f"Quality ratio **{qr:.0%}** — excellent. High-value outcomes dominate your week.")
+    elif qr >= 0.5:
+        lines.append(f"Quality ratio **{qr:.0%}** — solid balance of volume and quality.")
+    elif qr >= 0.3:
+        lines.append(f"Quality ratio **{qr:.0%}** — moderate. More meaningful conversations would lift this significantly.")
+    else:
+        lines.append(f"Quality ratio **{qr:.0%}** — volume-heavy. Focus on conversations and booked meetings for the biggest score gains.")
+
+    return lines
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # CSS
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -703,9 +804,9 @@ def _render_stepper(current: int) -> None:
 
 
 def _live_score_panel() -> None:
-    """Right-side live scoring summary — updates on every widget change."""
-    _d = st.session_state.get("_draft", {})
-    counts = {f: int(_d.get(f, 0) or 0) for f in COUNT_FIELDS}
+    """Right-side live scoring summary — reads widget state directly for real-time updates."""
+    # Read directly from widget keys so score updates as inputs change (no form submit needed)
+    counts = {f: int(st.session_state.get(f, 0) or 0) for f in COUNT_FIELDS}
     w, c   = get_weights(), {}
     s      = compute_row_score(counts, w, c)
     total  = s["total"]
@@ -715,7 +816,9 @@ def _live_score_panel() -> None:
     with st.container(border=True):
         # Total score
         st.markdown(
-            f'<div class="lsp-total-sub">Live Score</div>'
+            f'<div class="lsp-total-sub">'
+            f'  {_svg("lightning", 13, "#64748B")} Live Score'
+            f'</div>'
             f'<div class="lsp-total">{total}</div>'
             f'<div class="lsp-total-sub" style="margin-top:2px">points</div>',
             unsafe_allow_html=True,
@@ -725,43 +828,70 @@ def _live_score_panel() -> None:
             f'<div class="lsp-prog-track">'
             f'  <div class="lsp-prog-fill" style="width:{min(qr * 100, 100):.0f}%"></div>'
             f'</div>'
-            f'<div class="lsp-qr-badge">{qr:.0%} quality</div>',
+            f'<div class="lsp-qr-badge">{_svg("star", 12, "#10B981")} {qr:.0%} quality</div>',
             unsafe_allow_html=True,
         )
-        # Channel breakdown — mini progress bars
-        st.markdown('<div class="lsp-sec">By Channel</div>', unsafe_allow_html=True)
+        # Channel breakdown — mini progress bars with SVG icons
+        st.markdown(
+            f'<div class="lsp-sec">{_svg("chart", 11, "#64748B")} By Channel</div>',
+            unsafe_allow_html=True,
+        )
         ch_totals = s["channel_totals"]
         max_ch    = max(ch_totals.values(), default=1) or 1
         bars_html = ""
-        any_pts   = False
         for ch in chs:
             pts = ch_totals.get(ch, 0)
             pct = min(pts / max_ch * 100, 100) if max_ch > 0 else 0
-            ico = CHANNEL_ICONS.get(ch, "•")
-            if pts > 0:
-                any_pts = True
+            ico = _CH_SVG.get(ch, lambda _=14: "•")(14)
             bars_html += (
                 f'<div class="ch-bar-wrap">'
-                f'  <span class="ch-bar-label">{ico} {ch}</span>'
+                f'  <span class="ch-bar-label">{ico}&nbsp;{ch}</span>'
                 f'  <div class="ch-bar-track">'
                 f'    <div class="ch-bar-fill" style="width:{pct:.0f}%"></div>'
                 f'  </div>'
                 f'  <span class="ch-bar-pts">{pts:.0f}</span>'
                 f'</div>'
             )
-        if any_pts:
-            st.markdown(f'<div>{bars_html}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(bars_html, unsafe_allow_html=True)  # show empty bars
-        # Step completion status
-        st.markdown('<div class="lsp-sec">Steps filled</div>', unsafe_allow_html=True)
+        st.markdown(f'<div>{bars_html}</div>', unsafe_allow_html=True)
+
+        # Step completion status with SVG
+        _STEP_ICON_NAMES = ["calendar", "phone", "envelope", "link"]
+        st.markdown(
+            f'<div class="lsp-sec">{_svg("check", 11, "#64748B")} Steps filled</div>',
+            unsafe_allow_html=True,
+        )
         icons_html = ""
-        for i, ico in enumerate(STEP_ICONS[:4]):
-            filled = any(_d.get(f, 0) > 0
-                         for f in STEP_FIELDS[STEP_NAMES[i]])
-            color  = BRAND_GREEN if filled else "rgba(255,255,255,0.18)"
-            icons_html += f'<span style="color:{color}">{ico}</span>'
+        for i, icon_name in enumerate(_STEP_ICON_NAMES):
+            filled = any(st.session_state.get(f, 0) > 0 for f in STEP_FIELDS[STEP_NAMES[i]])
+            color  = BRAND_GREEN if filled else "rgba(255,255,255,0.2)"
+            icons_html += f'<span style="margin-right:6px">{_svg(icon_name, 18, color)}</span>'
         st.markdown(f'<div class="lsp-step-icons">{icons_html}</div>', unsafe_allow_html=True)
+
+        # Score reasoning
+        with st.expander(f"{'💡'} Score explained", expanded=False):
+            insights = _score_reasoning(counts, s)
+            for line in insights:
+                st.markdown(f"- {line}")
+
+        # Learn more
+        with st.expander(f"{'📖'} How scoring works", expanded=False):
+            st.markdown(
+                "**Points = count × weight** for each outcome logged.\n\n"
+                "Higher-value outcomes — meaningful conversations, positive replies, "
+                "meetings booked — carry far more weight than volume activities like "
+                "dials or emails sent. This incentivises quality engagement over raw volume.\n\n"
+                "**Quality Ratio** = high-value pts ÷ total pts. "
+                "A ratio above 50% means most of your score comes from relationship-advancing activities."
+            )
+            ws = get_weights()
+            sheet = []
+            for ch, outcomes in ws.items():
+                for outcome, pts in outcomes.items():
+                    sheet.append({"Channel": ch, "Outcome": outcome, "Pts": pts})
+            if sheet:
+                import pandas as _pd2
+                st.dataframe(_pd2.DataFrame(sheet), use_container_width=True,
+                             hide_index=True, height=200)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -769,16 +899,15 @@ def _live_score_panel() -> None:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _step_meetings() -> None:
-    _card_header("📅", "Meetings", "How many meetings did you hold this week?")
-    with st.form("step_meetings_form"):
-        c1, _ = st.columns(2)
-        _count_input("meeting_held", col=c1)
-        st.markdown("")
-        _, nav_r = st.columns(2)
-        with nav_r:
-            next_sub = st.form_submit_button("Next →", type="primary", use_container_width=True)
+    _card_header(_svg("calendar", 22, "#94A3B8"), "Meetings", "How many meetings did you hold this week?")
+    c1, _ = st.columns(2)
+    _count_input("meeting_held", col=c1)
+    st.markdown("")
+    _, nav_r = st.columns(2)
+    with nav_r:
+        next_clicked = st.button("Next →", type="primary", use_container_width=True, key="meet_next")
     _proof_section("meetings")
-    if next_sub:
+    if next_clicked:
         st.session_state["_draft"]["meeting_held"] = int(st.session_state.get("meeting_held", 0) or 0)
         st.session_state["_step_errors"] = []
         st.session_state["_error_step"] = ""
@@ -787,31 +916,30 @@ def _step_meetings() -> None:
 
 
 def _step_calls() -> None:
-    _card_header("📞", "Calls", "Log every call attempt and outcome from your sessions this week.")
+    _card_header(_svg("phone", 22, "#94A3B8"), "Calls", "Log every call attempt and outcome from your sessions this week.")
     _errors = st.session_state.get("_step_errors", []) if st.session_state.get("_error_step") == "calls" else []
-    with st.form("step_calls_form"):
-        c1, c2 = st.columns(2)
-        for i, f in enumerate(STEP_FIELDS["calls"]):
-            _count_input(f, col=c1 if i % 2 == 0 else c2)
-        st.markdown("")
-        if _errors:
-            err_html = "".join(f'<div class="funnel-err-item">↳ {e}</div>' for e in _errors)
-            st.markdown(
-                f'<div class="funnel-err-box">'
-                f'<div class="funnel-err-title">⚠ Funnel Constraint Violated</div>'
-                f'{err_html}</div>',
-                unsafe_allow_html=True,
-            )
-            autofix_sub = st.form_submit_button("🔧 Auto-fix Calls", type="secondary", use_container_width=True)
-        else:
-            autofix_sub = False
-        nav_l, nav_r = st.columns(2)
-        with nav_l:
-            prev_sub = st.form_submit_button("← Previous", use_container_width=True)
-        with nav_r:
-            next_sub = st.form_submit_button("Next →", type="primary", use_container_width=True)
+    c1, c2 = st.columns(2)
+    for i, f in enumerate(STEP_FIELDS["calls"]):
+        _count_input(f, col=c1 if i % 2 == 0 else c2)
+    st.markdown("")
+    if _errors:
+        err_html = "".join(f'<div class="funnel-err-item">↳ {e}</div>' for e in _errors)
+        st.markdown(
+            f'<div class="funnel-err-box">'
+            f'<div class="funnel-err-title">⚠ Funnel Constraint Violated</div>'
+            f'{err_html}</div>',
+            unsafe_allow_html=True,
+        )
+        autofix_clicked = st.button("🔧 Auto-fix Calls", type="secondary", use_container_width=True, key="autofix_calls")
+    else:
+        autofix_clicked = False
+    nav_l, nav_r = st.columns(2)
+    with nav_l:
+        prev_clicked = st.button("← Previous", use_container_width=True, key="calls_prev")
+    with nav_r:
+        next_clicked = st.button("Next →", type="primary", use_container_width=True, key="calls_next")
     _proof_section("calls")
-    if autofix_sub:
+    if autofix_clicked:
         _c = {f: int(st.session_state.get(f, 0) or 0) for f in STEP_FIELDS["calls"]}
         for f, v in autofix_step("calls", _c).items():
             st.session_state[f] = v
@@ -819,14 +947,14 @@ def _step_calls() -> None:
         st.session_state["_step_errors"] = []
         st.session_state["_error_step"] = ""
         st.rerun()
-    elif prev_sub:
+    elif prev_clicked:
         for f in STEP_FIELDS["calls"]:
             st.session_state["_draft"][f] = int(st.session_state.get(f, 0) or 0)
         st.session_state["_step_errors"] = []
         st.session_state["_error_step"] = ""
         st.session_state.wizard_step -= 1
         st.rerun()
-    elif next_sub:
+    elif next_clicked:
         _c = {f: int(st.session_state.get(f, 0) or 0) for f in STEP_FIELDS["calls"]}
         _errs = validate_step("calls", _c)
         if _errs:
@@ -843,31 +971,30 @@ def _step_calls() -> None:
 
 
 def _step_email() -> None:
-    _card_header("✉️", "Email", "Count every outbound email and any replies you received this week.")
+    _card_header(_svg("envelope", 22, "#94A3B8"), "Email", "Count every outbound email and any replies you received this week.")
     _errors = st.session_state.get("_step_errors", []) if st.session_state.get("_error_step") == "email" else []
-    with st.form("step_email_form"):
-        c1, c2 = st.columns(2)
-        for i, f in enumerate(STEP_FIELDS["email"]):
-            _count_input(f, col=c1 if i % 2 == 0 else c2)
-        st.markdown("")
-        if _errors:
-            err_html = "".join(f'<div class="funnel-err-item">↳ {e}</div>' for e in _errors)
-            st.markdown(
-                f'<div class="funnel-err-box">'
-                f'<div class="funnel-err-title">⚠ Funnel Constraint Violated</div>'
-                f'{err_html}</div>',
-                unsafe_allow_html=True,
-            )
-            autofix_sub = st.form_submit_button("🔧 Auto-fix Email", type="secondary", use_container_width=True)
-        else:
-            autofix_sub = False
-        nav_l, nav_r = st.columns(2)
-        with nav_l:
-            prev_sub = st.form_submit_button("← Previous", use_container_width=True)
-        with nav_r:
-            next_sub = st.form_submit_button("Next →", type="primary", use_container_width=True)
+    c1, c2 = st.columns(2)
+    for i, f in enumerate(STEP_FIELDS["email"]):
+        _count_input(f, col=c1 if i % 2 == 0 else c2)
+    st.markdown("")
+    if _errors:
+        err_html = "".join(f'<div class="funnel-err-item">↳ {e}</div>' for e in _errors)
+        st.markdown(
+            f'<div class="funnel-err-box">'
+            f'<div class="funnel-err-title">⚠ Funnel Constraint Violated</div>'
+            f'{err_html}</div>',
+            unsafe_allow_html=True,
+        )
+        autofix_clicked = st.button("🔧 Auto-fix Email", type="secondary", use_container_width=True, key="autofix_email")
+    else:
+        autofix_clicked = False
+    nav_l, nav_r = st.columns(2)
+    with nav_l:
+        prev_clicked = st.button("← Previous", use_container_width=True, key="email_prev")
+    with nav_r:
+        next_clicked = st.button("Next →", type="primary", use_container_width=True, key="email_next")
     _proof_section("email")
-    if autofix_sub:
+    if autofix_clicked:
         _c = {f: int(st.session_state.get(f, 0) or 0) for f in STEP_FIELDS["email"]}
         for f, v in autofix_step("email", _c).items():
             st.session_state[f] = v
@@ -875,14 +1002,14 @@ def _step_email() -> None:
         st.session_state["_step_errors"] = []
         st.session_state["_error_step"] = ""
         st.rerun()
-    elif prev_sub:
+    elif prev_clicked:
         for f in STEP_FIELDS["email"]:
             st.session_state["_draft"][f] = int(st.session_state.get(f, 0) or 0)
         st.session_state["_step_errors"] = []
         st.session_state["_error_step"] = ""
         st.session_state.wizard_step -= 1
         st.rerun()
-    elif next_sub:
+    elif next_clicked:
         _c = {f: int(st.session_state.get(f, 0) or 0) for f in STEP_FIELDS["email"]}
         _errs = validate_step("email", _c)
         if _errs:
@@ -899,31 +1026,30 @@ def _step_email() -> None:
 
 
 def _step_linkedin() -> None:
-    _card_header("🔗", "LinkedIn", "Record all LinkedIn outreach activity from this week.")
+    _card_header(_svg("link", 22, "#94A3B8"), "LinkedIn", "Record all LinkedIn outreach activity from this week.")
     _errors = st.session_state.get("_step_errors", []) if st.session_state.get("_error_step") == "linkedin" else []
-    with st.form("step_linkedin_form"):
-        c1, c2 = st.columns(2)
-        for i, f in enumerate(STEP_FIELDS["linkedin"]):
-            _count_input(f, col=c1 if i % 2 == 0 else c2)
-        st.markdown("")
-        if _errors:
-            err_html = "".join(f'<div class="funnel-err-item">↳ {e}</div>' for e in _errors)
-            st.markdown(
-                f'<div class="funnel-err-box">'
-                f'<div class="funnel-err-title">⚠ Funnel Constraint Violated</div>'
-                f'{err_html}</div>',
-                unsafe_allow_html=True,
-            )
-            autofix_sub = st.form_submit_button("🔧 Auto-fix LinkedIn", type="secondary", use_container_width=True)
-        else:
-            autofix_sub = False
-        nav_l, nav_r = st.columns(2)
-        with nav_l:
-            prev_sub = st.form_submit_button("← Previous", use_container_width=True)
-        with nav_r:
-            next_sub = st.form_submit_button("Review & Save →", type="primary", use_container_width=True)
+    c1, c2 = st.columns(2)
+    for i, f in enumerate(STEP_FIELDS["linkedin"]):
+        _count_input(f, col=c1 if i % 2 == 0 else c2)
+    st.markdown("")
+    if _errors:
+        err_html = "".join(f'<div class="funnel-err-item">↳ {e}</div>' for e in _errors)
+        st.markdown(
+            f'<div class="funnel-err-box">'
+            f'<div class="funnel-err-title">⚠ Funnel Constraint Violated</div>'
+            f'{err_html}</div>',
+            unsafe_allow_html=True,
+        )
+        autofix_clicked = st.button("🔧 Auto-fix LinkedIn", type="secondary", use_container_width=True, key="autofix_li")
+    else:
+        autofix_clicked = False
+    nav_l, nav_r = st.columns(2)
+    with nav_l:
+        prev_clicked = st.button("← Previous", use_container_width=True, key="li_prev")
+    with nav_r:
+        next_clicked = st.button("Review & Save →", type="primary", use_container_width=True, key="li_next")
     _proof_section("linkedin")
-    if autofix_sub:
+    if autofix_clicked:
         _c = {f: int(st.session_state.get(f, 0) or 0) for f in STEP_FIELDS["linkedin"]}
         for f, v in autofix_step("linkedin", _c).items():
             st.session_state[f] = v
@@ -931,14 +1057,14 @@ def _step_linkedin() -> None:
         st.session_state["_step_errors"] = []
         st.session_state["_error_step"] = ""
         st.rerun()
-    elif prev_sub:
+    elif prev_clicked:
         for f in STEP_FIELDS["linkedin"]:
             st.session_state["_draft"][f] = int(st.session_state.get(f, 0) or 0)
         st.session_state["_step_errors"] = []
         st.session_state["_error_step"] = ""
         st.session_state.wizard_step -= 1
         st.rerun()
-    elif next_sub:
+    elif next_clicked:
         _c = {f: int(st.session_state.get(f, 0) or 0) for f in STEP_FIELDS["linkedin"]}
         _errs = validate_step("linkedin", _c)
         if _errs:
