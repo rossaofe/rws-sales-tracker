@@ -132,6 +132,33 @@ _CH_SVG = {
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Per-rep target helpers
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _get_rep_targets(rep: str) -> dict:
+    """Return targets for a specific rep. Handles old shared format transparently."""
+    all_tgt = get_setting("targets", {})
+    if not all_tgt:
+        return {}
+    first = next(iter(all_tgt.values()), None)
+    if isinstance(first, dict):
+        return all_tgt.get(rep, {})
+    # Old format — shared across all reps; return as-is for backwards compat
+    return all_tgt
+
+
+def _set_rep_targets(rep: str, targets: dict) -> None:
+    """Save targets for a specific rep, migrating old shared format if needed."""
+    all_tgt = get_setting("targets", {})
+    if all_tgt:
+        first = next(iter(all_tgt.values()), None)
+        if first is not None and not isinstance(first, dict):
+            all_tgt = {}   # discard old shared format, start per-rep
+    all_tgt[rep] = targets
+    set_setting("targets", all_tgt)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Score reasoning
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1152,7 +1179,7 @@ def _step_review() -> None:
         st.info("No counts entered yet — use the steps above to fill in your activity.")
 
     # ── vs. Weekly Targets ─────────────────────────────────────────────────────
-    _tgt = get_setting("targets", {})
+    _tgt = _get_rep_targets(rep_name)
     _tgt_fields = [f for f in COUNT_FIELDS if _tgt.get(f, 0) > 0]
     if _tgt_fields:
         st.markdown('<div class="sec-label">vs. Weekly Targets</div>', unsafe_allow_html=True)
@@ -1396,7 +1423,7 @@ with st.sidebar:
             st.session_state.wizard_step = 4; st.rerun()
 
     # ── Weekly Progress ────────────────────────────────────────────────────────
-    _sb_tgt_settings = get_setting("targets", {})
+    _sb_tgt_settings = _get_rep_targets(st.session_state.get("draft_rep", ""))
     _sb_tgt_active   = {f: int(_sb_tgt_settings.get(f, 0) or 0)
                         for f in COUNT_FIELDS
                         if int(_sb_tgt_settings.get(f, 0) or 0) > 0}
@@ -1576,7 +1603,7 @@ with tab_goals:
     _g_wk      = week_start(_g_date_raw)
     _g_wk_end  = _g_wk + timedelta(days=4)
     _g_wk_lbl  = f"{_g_wk.strftime('%d %b')} – {_g_wk_end.strftime('%d %b %Y')}"
-    _cur_tgt   = get_setting("targets", {})
+    _cur_tgt   = _get_rep_targets(_g_rep) if _g_rep else {}
 
     # ── Header ─────────────────────────────────────────────────────────────────
     st.markdown(
@@ -1645,10 +1672,12 @@ with tab_goals:
                                     min_value=0, step=1, key=f"goal_{f}")
 
             st.markdown("")
-            if st.button("💾 Save Goals", type="primary", use_container_width=True, key="save_goals"):
+            if not _g_rep:
+                st.warning("Select a rep in the sidebar to save goals.")
+            elif st.button("💾 Save Goals", type="primary", use_container_width=True, key="save_goals"):
                 _new_tgt = {f: int(st.session_state.get(f"goal_{f}", 0) or 0) for f in COUNT_FIELDS}
-                set_setting("targets", _new_tgt)
-                st.success("✅  Goals saved!")
+                _set_rep_targets(_g_rep, _new_tgt)
+                st.success(f"✅  Goals saved for **{_g_rep}**!")
                 st.rerun()
 
         # ── Notes ──────────────────────────────────────────────────────────────
@@ -1693,10 +1722,10 @@ with tab_goals:
             _g_tgt_active = {f: int(_cur_tgt.get(f, 0)) for f in COUNT_FIELDS
                              if int(_cur_tgt.get(f, 0) or 0) > 0}
 
-            if not _g_tgt_active:
-                st.info("Set your targets on the left and hit Save Goals to start tracking.")
-            elif not _g_rep:
+            if not _g_rep:
                 st.info("Select a rep in the sidebar to view progress.")
+            elif not _g_tgt_active:
+                st.info("Set your targets on the left and hit Save Goals to start tracking.")
             else:
                 _g_row    = get_existing_row(str(_g_wk), _g_rep)
                 _g_actual = {f: int((_g_row or {}).get(f, 0)) for f in COUNT_FIELDS}
