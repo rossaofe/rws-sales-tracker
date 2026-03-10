@@ -1406,8 +1406,8 @@ st.markdown(
 # Main tabs
 # ══════════════════════════════════════════════════════════════════════════════
 
-tab_wizard, tab_dash, tab_import, tab_settings = st.tabs(
-    ["📝  Weekly Log", "📈  Dashboard", "📤  Import CSV", "⚙️  Settings"]
+tab_wizard, tab_goals, tab_dash, tab_import, tab_settings = st.tabs(
+    ["📝  Weekly Log", "🎯  Goals", "📈  Dashboard", "📤  Import CSV", "⚙️  Settings"]
 )
 
 
@@ -1439,7 +1439,156 @@ with tab_wizard:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — DASHBOARD
+# TAB 2 — GOALS
+# ══════════════════════════════════════════════════════════════════════════════
+
+with tab_goals:
+    _g_rep      = st.session_state.get("draft_rep", "")
+    _g_date_raw = st.session_state.get("draft_date", date.today())
+    if isinstance(_g_date_raw, str):
+        _g_date_raw = date.fromisoformat(_g_date_raw)
+    _g_wk      = week_start(_g_date_raw)
+    _g_wk_end  = _g_wk + timedelta(days=4)
+    _g_wk_lbl  = f"{_g_wk.strftime('%d %b')} – {_g_wk_end.strftime('%d %b %Y')}"
+
+    # ── Header ─────────────────────────────────────────────────────────────────
+    st.markdown(
+        f'<div class="section-title">Weekly Goals</div>'
+        f'<div class="section-title-sub">'
+        f'  {("**" + _g_rep + "**  ·  ") if _g_rep else ""}Week of {_g_wk_lbl}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    goal_left, goal_right = st.columns([6, 4], gap="large")
+
+    # ── Set your goals ─────────────────────────────────────────────────────────
+    with goal_left:
+        with st.container(border=True):
+            st.markdown("##### Set Your Goals for the Week")
+            st.caption("Enter how many of each activity you're aiming for. Leave at 0 to skip.")
+            _cur_tgt = get_setting("targets", {})
+            ga, gb, gc, gd = st.columns(4)
+            with ga:
+                st.markdown("**📅 Meetings**")
+                for f in STEP_FIELDS["meetings"]:
+                    st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
+                                    min_value=0, step=1, key=f"goal_{f}")
+            with gb:
+                st.markdown("**📞 Calls**")
+                for f in STEP_FIELDS["calls"]:
+                    st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
+                                    min_value=0, step=1, key=f"goal_{f}")
+            with gc:
+                st.markdown("**✉️ Email**")
+                for f in STEP_FIELDS["email"]:
+                    st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
+                                    min_value=0, step=1, key=f"goal_{f}")
+            with gd:
+                st.markdown("**🔗 LinkedIn**")
+                for f in STEP_FIELDS["linkedin"]:
+                    st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
+                                    min_value=0, step=1, key=f"goal_{f}")
+            st.markdown("")
+            if st.button("💾 Save Goals", type="primary", use_container_width=True, key="save_goals"):
+                _new_tgt = {f: int(st.session_state.get(f"goal_{f}", 0) or 0) for f in COUNT_FIELDS}
+                set_setting("targets", _new_tgt)
+                st.success("✅  Goals saved!")
+                st.rerun()
+
+        # ── Notes ──────────────────────────────────────────────────────────────
+        with st.container(border=True):
+            st.markdown("##### 📝 Week Notes")
+            st.caption("Anything worth remembering about this week — context, blockers, wins.")
+            _g_saved_row  = get_existing_row(str(_g_wk), _g_rep) if _g_rep else None
+            _g_saved_notes = (_g_saved_row or {}).get("notes", "")
+            _g_notes_val  = st.text_area("Notes", value=_g_saved_notes, height=130,
+                                          key="goals_notes", label_visibility="collapsed")
+            if st.button("💾 Save Notes", use_container_width=True, key="save_goals_notes"):
+                if not _g_rep:
+                    st.error("Select a rep in the sidebar first.")
+                else:
+                    _g_counts = {f: int((_g_saved_row or {}).get(f, 0)) for f in COUNT_FIELDS}
+                    upsert_daily_total(str(_g_wk), _g_rep, _g_counts, _g_notes_val)
+                    st.success("✅  Notes saved!")
+                    st.rerun()
+
+    # ── Progress this week ─────────────────────────────────────────────────────
+    with goal_right:
+        with st.container(border=True):
+            st.markdown("##### How You're Doing")
+            _g_tgt = get_setting("targets", {})
+            _g_tgt_active = {f: int(_g_tgt.get(f, 0)) for f in COUNT_FIELDS
+                             if int(_g_tgt.get(f, 0) or 0) > 0}
+
+            if not _g_tgt_active:
+                st.info("Set your goals on the left and hit Save Goals to start tracking.")
+            elif not _g_rep:
+                st.info("Select a rep in the sidebar to view progress.")
+            else:
+                _g_row    = get_existing_row(str(_g_wk), _g_rep)
+                _g_actual = {f: int((_g_row or {}).get(f, 0)) for f in COUNT_FIELDS}
+
+                _g_met   = sum(1 for f, t in _g_tgt_active.items() if _g_actual.get(f, 0) >= t)
+                _g_total = len(_g_tgt_active)
+                _g_pct   = _g_met / _g_total * 100 if _g_total else 0
+                _g_col   = "#10B981" if _g_pct == 100 else ("#F59E0B" if _g_pct >= 50 else "#EF4444")
+
+                st.markdown(
+                    f'<div style="font-size:2rem;font-weight:900;color:{_g_col};'
+                    f'letter-spacing:-0.03em;line-height:1">{_g_met}/{_g_total}</div>'
+                    f'<div style="font-size:0.72rem;color:#64748B;font-weight:600;'
+                    f'text-transform:uppercase;letter-spacing:0.07em;margin-bottom:14px">'
+                    f'goals hit this week</div>',
+                    unsafe_allow_html=True,
+                )
+
+                _CH_GROUPS = [("📅", "meetings"), ("📞", "calls"),
+                              ("✉️", "email"), ("🔗", "linkedin")]
+                for ico, step in _CH_GROUPS:
+                    ch_fields = [f for f in STEP_FIELDS[step] if f in _g_tgt_active]
+                    if not ch_fields:
+                        continue
+                    st.markdown(
+                        f'<div style="font-size:0.67rem;font-weight:700;color:#475569;'
+                        f'text-transform:uppercase;letter-spacing:0.08em;'
+                        f'margin:12px 0 6px 0">{ico} {step.title()}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for f in ch_fields:
+                        t   = _g_tgt_active[f]
+                        a   = _g_actual.get(f, 0)
+                        pct = min(a / t * 100, 100) if t > 0 else 0
+                        met = a >= t
+                        val_col = "#10B981" if met else ("#F8FAFC" if a > 0 else "#475569")
+                        bar_col = "#10B981" if met else ("#F59E0B" if a > 0 else "rgba(255,255,255,0.08)")
+                        icon    = "✅" if met else ("🟡" if a > 0 else "⬜")
+                        st.markdown(
+                            f'<div style="margin-bottom:9px">'
+                            f'  <div style="display:flex;justify-content:space-between;'
+                            f'      align-items:center;margin-bottom:3px">'
+                            f'    <span style="font-size:0.76rem;color:#94A3B8">'
+                            f'      {icon} {FIELD_LABELS[f]}</span>'
+                            f'    <span style="font-size:0.76rem;font-weight:700;'
+                            f'        color:{val_col};white-space:nowrap;margin-left:6px">'
+                            f'      {a} <span style="color:#334155;font-weight:400">/ {t}</span>'
+                            f'    </span>'
+                            f'  </div>'
+                            f'  <div style="height:5px;background:rgba(255,255,255,0.07);'
+                            f'      border-radius:3px;overflow:hidden">'
+                            f'    <div style="width:{pct:.0f}%;height:100%;'
+                            f'        background:{bar_col};border-radius:3px"></div>'
+                            f'  </div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                if not _g_row:
+                    st.caption("No activity logged yet for this week — use Weekly Log to add.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_dash:
@@ -1826,35 +1975,6 @@ with tab_settings:
 
     st.markdown("")
 
-    # ── Weekly Targets ─────────────────────────────────────────────────────────
-    with st.container(border=True):
-        st.markdown("##### 🎯 Weekly Targets")
-        st.caption("Set weekly outreach targets per outcome. Leave at 0 to skip tracking for that activity.")
-        _cur_tgt = get_setting("targets", {})
-        tc1, tc2, tc3, tc4 = st.columns(4)
-        with tc1:
-            st.markdown("**📅 Meetings**")
-            for f in STEP_FIELDS["meetings"]:
-                st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
-                                min_value=0, step=1, key=f"tgt_{f}")
-        with tc2:
-            st.markdown("**📞 Calls**")
-            for f in STEP_FIELDS["calls"]:
-                st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
-                                min_value=0, step=1, key=f"tgt_{f}")
-        with tc3:
-            st.markdown("**✉️ Email**")
-            for f in STEP_FIELDS["email"]:
-                st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
-                                min_value=0, step=1, key=f"tgt_{f}")
-        with tc4:
-            st.markdown("**🔗 LinkedIn**")
-            for f in STEP_FIELDS["linkedin"]:
-                st.number_input(FIELD_LABELS[f], value=int(_cur_tgt.get(f, 0)),
-                                min_value=0, step=1, key=f"tgt_{f}")
-
-    st.markdown("")
-
     if st.button("💾 Save Settings", type="primary", use_container_width=True, key="save_s"):
         errs  = []
         new_w = None
@@ -1871,11 +1991,9 @@ with tab_settings:
         if errs:
             for e in errs: st.error(e)
         else:
-            new_targets = {f: int(st.session_state.get(f"tgt_{f}", 0) or 0) for f in COUNT_FIELDS}
             set_setting("reps",               new_reps)
             set_setting("weights",            new_w)
             set_setting("week_starts_monday", week_opt == "Monday")
-            set_setting("targets",            new_targets)
             st.success("✅  Settings saved!")
             st.rerun()
 
