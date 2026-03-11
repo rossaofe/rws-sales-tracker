@@ -841,13 +841,37 @@ def _live_score_panel() -> None:
     chs    = get_channels()
 
     with st.container(border=True):
-        # Total score
+        # Total score + threshold badge
+        _badge_rep = st.session_state.get("draft_rep", "")
+        _badge_tgt = _get_rep_targets(_badge_rep) if _badge_rep else {}
+        _tgt_score = sum(
+            int(_badge_tgt.get(f, 0)) * w.get(FIELD_MAP[f][0], {}).get(FIELD_MAP[f][1], 0)
+            for f in COUNT_FIELDS if int(_badge_tgt.get(f, 0) or 0) > 0
+        )
+        if _tgt_score > 0:
+            _ratio = total / _tgt_score
+            if _ratio >= 1.2:   _badge, _bclr = "Elite",    "#10B981"
+            elif _ratio >= 0.8: _badge, _bclr = "On Track",  "#F59E0B"
+            else:               _badge, _bclr = "Building",  "#64748B"
+        elif total >= 500:      _badge, _bclr = "Elite",    "#10B981"
+        elif total >= 200:      _badge, _bclr = "On Track",  "#F59E0B"
+        elif total > 0:         _badge, _bclr = "Building",  "#64748B"
+        else:                   _badge, _bclr = None, None
+
+        _badge_html = (
+            f'<div style="display:inline-block;background:rgba(0,0,0,0.25);'
+            f'color:{_bclr};border:1px solid {_bclr}44;border-radius:5px;'
+            f'font-size:0.62rem;font-weight:800;letter-spacing:0.1em;'
+            f'padding:2px 8px;text-transform:uppercase;margin-top:5px">'
+            f'{_badge}</div>'
+        ) if _badge else ""
         st.markdown(
             f'<div class="lsp-total-sub">'
             f'  {_svg("lightning", 13, "#64748B")} Live Score'
             f'</div>'
             f'<div class="lsp-total">{total}</div>'
-            f'<div class="lsp-total-sub" style="margin-top:2px">points</div>',
+            f'<div class="lsp-total-sub" style="margin-top:2px">points</div>'
+            f'{_badge_html}',
             unsafe_allow_html=True,
         )
         # Quality ratio progress bar
@@ -1832,6 +1856,62 @@ with tab_goals:
                 if not _g_row:
                     st.caption("No activity saved yet — log your week to update progress.")
 
+    # ── Rep comparison for selected week ───────────────────────────────────────
+    _rcomp = []
+    for _rc_rep in get_setting("reps", []):
+        _rc_tgt = _get_rep_targets(_rc_rep)
+        _rc_fields = [f for f in COUNT_FIELDS if int(_rc_tgt.get(f, 0) or 0) > 0]
+        if not _rc_fields:
+            continue
+        _rc_row    = get_existing_row(str(_g_wk), _rc_rep)
+        _rc_actual = {f: int((_rc_row or {}).get(f, 0)) for f in COUNT_FIELDS}
+        _rc_met    = sum(1 for f in _rc_fields if _rc_actual.get(f, 0) >= int(_rc_tgt[f]))
+        _rc_pct    = _rc_met / len(_rc_fields) * 100
+        _rcomp.append({"rep": _rc_rep, "met": _rc_met, "total": len(_rc_fields), "pct": _rc_pct})
+
+    if _rcomp:
+        _rcomp.sort(key=lambda x: x["pct"], reverse=True)
+        st.markdown("")
+        with st.container(border=True):
+            st.markdown(
+                f'<div class="card-hdr">'
+                f'  <span class="card-hdr-icon">{_svg("user", 20, "#94A3B8")}</span>'
+                f'  <div>'
+                f'    <div class="card-hdr-title">Team Comparison</div>'
+                f'    <div class="card-hdr-sub">Goal achievement this week — {_g_wk_lbl}</div>'
+                f'  </div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            _medals = ["🥇", "🥈", "🥉"]
+            _rc_html = ""
+            for i, rc in enumerate(_rcomp):
+                _col  = "#10B981" if rc["pct"] == 100 else ("#F59E0B" if rc["pct"] >= 50 else "#64748B")
+                _rank = _medals[i] if i < 3 else f"{i+1}"
+                _is_me = rc["rep"] == _g_rep
+                _bg   = "rgba(185,28,28,0.08)" if _is_me else "transparent"
+                _border = f"border-left:3px solid #B91C1C;" if _is_me else "border-left:3px solid transparent;"
+                _rc_html += (
+                    f'<div style="display:flex;align-items:center;gap:10px;'
+                    f'padding:8px 6px;border-bottom:1px solid rgba(255,255,255,0.05);'
+                    f'background:{_bg};{_border}">'
+                    f'  <span style="font-size:1rem;width:22px;text-align:center">{_rank}</span>'
+                    f'  <span style="font-size:0.82rem;font-weight:600;color:#E2E8F0;flex:1">'
+                    f'    {rc["rep"]}</span>'
+                    f'  <span style="font-size:0.78rem;color:#64748B;margin-right:8px">'
+                    f'    {rc["met"]}/{rc["total"]}</span>'
+                    f'  <div style="width:80px;height:5px;background:rgba(255,255,255,0.07);'
+                    f'      border-radius:3px;overflow:hidden">'
+                    f'    <div style="width:{rc["pct"]:.0f}%;height:100%;background:{_col};'
+                    f'        border-radius:3px"></div>'
+                    f'  </div>'
+                    f'  <span style="font-size:0.78rem;font-weight:700;color:{_col};'
+                    f'      width:36px;text-align:right">{rc["pct"]:.0f}%</span>'
+                    f'</div>'
+                )
+            st.markdown(f'<div style="margin:-8px -12px">{_rc_html}</div>',
+                        unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 3 — DASHBOARD
@@ -1982,6 +2062,56 @@ with tab_dash:
                 st.plotly_chart(_apply_chart_style(fig2), use_container_width=True)
             else:
                 st.info("No data for the selected period.")
+
+    st.markdown("")
+
+    # ── Goal achievement history ────────────────────────────────────────────────
+    _ga_data = []
+    for row in filtered:
+        _r_rep = row["rep_name"]
+        _r_tgt = _get_rep_targets(_r_rep)
+        _r_tgt_fields = [f for f in COUNT_FIELDS if int(_r_tgt.get(f, 0) or 0) > 0]
+        if not _r_tgt_fields:
+            continue
+        _r_met = sum(1 for f in _r_tgt_fields if row.get(f, 0) >= int(_r_tgt[f]))
+        _ga_data.append({
+            "Date": pd.Timestamp(row["date"]),
+            "Rep":  _r_rep,
+            "Goals Hit %": round(_r_met / len(_r_tgt_fields) * 100, 1),
+        })
+
+    if _ga_data:
+        st.markdown(
+            '<div class="section-title">Goal Achievement</div>'
+            '<div class="section-title-sub">% of weekly targets hit per rep over time</div>',
+            unsafe_allow_html=True,
+        )
+        with st.container(border=True):
+            st.markdown(
+                '<div class="chart-title">Target Achievement History</div>'
+                '<div class="chart-sub">100% = all targets met · dashed lines at 100% and 80%</div>',
+                unsafe_allow_html=True,
+            )
+            _ga_df = pd.DataFrame(_ga_data)
+            if f_rep == "All":
+                _ga_fig = px.line(_ga_df, x="Date", y="Goals Hit %", color="Rep",
+                                  range_y=[0, 110], markers=True,
+                                  color_discrete_sequence=CHART_COLORS)
+            else:
+                _ga_fig = px.area(_ga_df, x="Date", y="Goals Hit %",
+                                  range_y=[0, 110], markers=True,
+                                  color_discrete_sequence=[BRAND_RED])
+                _ga_fig.update_traces(fillcolor="rgba(185,28,28,0.12)", line_color=BRAND_RED)
+            _ga_fig.add_hline(y=100, line_dash="dot", line_color="#10B981",
+                              line_width=1, opacity=0.5,
+                              annotation_text="100%", annotation_font_color="#10B981",
+                              annotation_font_size=10)
+            _ga_fig.add_hline(y=80, line_dash="dot", line_color="#F59E0B",
+                              line_width=1, opacity=0.4,
+                              annotation_text="80%", annotation_font_color="#F59E0B",
+                              annotation_font_size=10)
+            st.plotly_chart(_apply_chart_style(_ga_fig, height=260),
+                            use_container_width=True)
 
     st.markdown("")
 
