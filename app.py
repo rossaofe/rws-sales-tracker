@@ -895,30 +895,62 @@ def _live_score_panel() -> None:
         st.markdown(f'<div class="lsp-step-icons">{icons_html}</div>', unsafe_allow_html=True)
 
         # Score reasoning
-        with st.expander(f"{'💡'} Score explained", expanded=False):
+        with st.expander("Score explained", expanded=False):
             insights = _score_reasoning(counts, s)
             for line in insights:
                 st.markdown(f"- {line}")
 
-        # Learn more
-        with st.expander(f"{'📖'} How scoring works", expanded=False):
-            st.markdown(
-                "**Points = count × weight** for each outcome logged.\n\n"
-                "Higher-value outcomes — meaningful conversations, positive replies, "
-                "meetings booked — carry far more weight than volume activities like "
-                "dials or emails sent. This incentivises quality engagement over raw volume.\n\n"
-                "**Quality Ratio** = high-value pts ÷ total pts. "
-                "A ratio above 50% means most of your score comes from relationship-advancing activities."
+        # Learn more — visual outcome weights
+        with st.expander("How scoring works", expanded=False):
+            _lm_ws    = get_weights()
+            _lm_max   = max((p for ch in _lm_ws.values() for p in ch.values()), default=1)
+            _lm_icons = {"Call": "phone", "Email": "envelope",
+                         "LinkedIn": "link", "Meeting": "calendar"}
+            _lm_html  = (
+                '<div style="font-size:0.72rem;color:#64748B;line-height:1.55;'
+                'margin-bottom:12px">'
+                'Each activity earns <strong style="color:#94A3B8">points = count × weight</strong>. '
+                'Longer bars = more points per activity.'
+                '</div>'
             )
-            ws = get_weights()
-            sheet = []
-            for ch, outcomes in ws.items():
+            for ch, outcomes in _lm_ws.items():
+                _ico = _lm_icons.get(ch, "star")
+                _lm_html += (
+                    f'<div style="display:flex;align-items:center;gap:5px;'
+                    f'margin:12px 0 5px 0">'
+                    f'  {_svg(_ico, 13, "#64748B")}'
+                    f'  <span style="font-size:0.65rem;font-weight:700;color:#475569;'
+                    f'      text-transform:uppercase;letter-spacing:0.09em">{ch}</span>'
+                    f'</div>'
+                )
                 for outcome, pts in outcomes.items():
-                    sheet.append({"Channel": ch, "Outcome": outcome, "Pts": pts})
-            if sheet:
-                import pandas as _pd2
-                st.dataframe(_pd2.DataFrame(sheet), use_container_width=True,
-                             hide_index=True, height=200)
+                    _bw  = pts / _lm_max * 100
+                    _bc  = "#10B981" if pts >= 30 else ("#F59E0B" if pts >= 10 else "#94A3B8")
+                    _lm_html += (
+                        f'<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">'
+                        f'  <span style="font-size:0.73rem;color:#94A3B8;width:140px;'
+                        f'      flex-shrink:0;white-space:nowrap;overflow:hidden;'
+                        f'      text-overflow:ellipsis">{outcome}</span>'
+                        f'  <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);'
+                        f'      border-radius:3px;overflow:hidden">'
+                        f'    <div style="width:{_bw:.0f}%;height:100%;background:{_bc};'
+                        f'        border-radius:3px"></div>'
+                        f'  </div>'
+                        f'  <span style="font-size:0.72rem;font-weight:700;color:{_bc};'
+                        f'      width:32px;text-align:right;flex-shrink:0">{pts}</span>'
+                        f'</div>'
+                    )
+            _lm_html += (
+                '<div style="margin-top:12px;padding:8px 10px;border-radius:7px;'
+                'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07)">'
+                f'  <span style="font-size:0.68rem;font-weight:700;color:#475569;'
+                f'      text-transform:uppercase;letter-spacing:0.08em">'
+                f'    {_svg("star",11,"#475569")} Quality Ratio&nbsp;</span>'
+                '<span style="font-size:0.72rem;color:#64748B">'
+                '= green-tier pts ÷ total. Aim for 50%+.</span>'
+                '</div>'
+            )
+            st.markdown(_lm_html, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
