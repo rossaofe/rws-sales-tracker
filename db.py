@@ -238,6 +238,16 @@ def delete_daily_total(row_id: int) -> None:
     conn.close()
 
 
+def delete_rep_totals(rep_name: str) -> int:
+    """Delete all daily_totals rows for a rep. Returns number of rows deleted."""
+    conn = _conn()
+    cur = conn.execute("DELETE FROM daily_totals WHERE rep_name=?", (rep_name,))
+    count = cur.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
+
 # ── Proofs ────────────────────────────────────────────────────────────────────
 
 def add_proofs(daily_id: int, step: str, file_paths: list) -> None:

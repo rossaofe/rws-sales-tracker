@@ -17,6 +17,7 @@ from db import (
     COUNT_FIELDS,
     add_proofs,
     delete_daily_total,
+    delete_rep_totals,
     get_daily_totals,
     get_existing_row,
     get_setting,
@@ -2381,3 +2382,52 @@ with tab_settings:
         st.json({f: _dbg_draft.get(f, 0) for f in COUNT_FIELDS})
         _dbg_total = compute_row_total({f: int(_dbg_draft.get(f, 0) or 0) for f in COUNT_FIELDS}, get_weights(), {})
         st.metric("Computed Score (_draft)", _dbg_total)
+
+    st.markdown("")
+    st.markdown('<div class="sec-label">Data Management</div>', unsafe_allow_html=True)
+    st.caption("View and remove uploaded entries by rep. Use this to fix mistakes like entries saved under the wrong name.")
+
+    _all_rows = get_daily_totals()
+    _w_dm = get_weights()
+    _c_dm = get_channels()
+
+    if not _all_rows:
+        st.info("No data in the database yet.")
+    else:
+        # Group rows by rep
+        _rep_rows: dict = {}
+        for _r in _all_rows:
+            _rep_rows.setdefault(_r["rep_name"], []).append(_r)
+
+        for _rep, _rows in sorted(_rep_rows.items()):
+            _total_pts = sum(compute_row_total(_r, _w_dm, _c_dm) for _r in _rows)
+            with st.expander(f"**{_rep}** — {len(_rows)} entr{'y' if len(_rows)==1 else 'ies'}  ·  {_total_pts} pts total"):
+                # Table of entries
+                _entry_rows = []
+                for _r in sorted(_rows, key=lambda x: x["date"], reverse=True):
+                    _pts = compute_row_total(_r, _w_dm, _c_dm)
+                    _entry_rows.append({
+                        "ID":    _r["id"],
+                        "Week":  _r["date"],
+                        "Score": _pts,
+                        "Notes": _r.get("notes", ""),
+                    })
+                st.dataframe(pd.DataFrame(_entry_rows), use_container_width=True, hide_index=True)
+
+                st.markdown("")
+                _dm_col1, _dm_col2 = st.columns([3, 1])
+                with _dm_col1:
+                    st.warning(
+                        f"⚠️ This will permanently delete **all {len(_rows)} entr{'y' if len(_rows)==1 else 'ies'}** "
+                        f"for **{_rep}**. This cannot be undone."
+                    )
+                with _dm_col2:
+                    if st.button(
+                        f"🗑️ Remove all",
+                        key=f"dm_del_{_rep}",
+                        type="secondary",
+                        use_container_width=True,
+                    ):
+                        _deleted = delete_rep_totals(_rep)
+                        st.success(f"Deleted {_deleted} entr{'y' if _deleted==1 else 'ies'} for {_rep}.")
+                        st.rerun()
