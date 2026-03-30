@@ -55,11 +55,7 @@ DEFAULT_SETTINGS = {
             "Meeting Held": 30,  # completed, attended meeting
         },
     },
-    "caps": {
-        "Call":     {"Dial": 60},
-        "Email":    {"Email Sent": 80},
-        "LinkedIn": {"Connection Request Sent": 40},
-    },
+    "caps": {},
     "week_starts_monday": True,
 }
 
@@ -121,6 +117,11 @@ def init_db() -> None:
     if get_setting("_weights_version") != WEIGHTS_VERSION:
         set_setting("weights", DEFAULT_SETTINGS["weights"])
         set_setting("_weights_version", WEIGHTS_VERSION)
+
+    # ── Caps migration: remove all caps ──────────────────────────────────────
+    if get_setting("_caps_removed") is None:
+        set_setting("caps", {})
+        set_setting("_caps_removed", True)
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
