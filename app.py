@@ -2389,7 +2389,7 @@ with tab_settings:
 
     _all_rows = get_daily_totals()
     _w_dm = get_weights()
-    _c_dm = get_channels()
+    _c_dm = {}
 
     if not _all_rows:
         st.info("No data in the database yet.")
